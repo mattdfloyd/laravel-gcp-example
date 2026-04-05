@@ -1,0 +1,26 @@
+# ============================================
+# Deploy to Staging
+# ============================================
+# Triggers on push to develop branch.
+# ============================================
+
+name: Deploy Staging
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      environment: staging
+      image_tag: ${{ github.sha }}
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}

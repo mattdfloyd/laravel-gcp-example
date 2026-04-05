@@ -1,0 +1,140 @@
+# ============================================
+# Reusable: Build (via Cloud Build) + Deploy
+# ============================================
+# Called by other workflows. Handles:
+#   1. Auth to GCP via Workload Identity
+#   2. Trigger Cloud Build to build + push image
+#   3. Run migrations
+#   4. Deploy web, worker, scheduler
+# ============================================
+
+name: Build & Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+        description: "Environment name (production, staging, pr-42, etc.)"
+      image_tag:
+        required: true
+        type: string
+        description: "Image tag (commit SHA, pr-42, etc.)"
+      run_migrations:
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        required: true
+      GCP_SERVICE_ACCOUNT:
+        required: true
+
+env:
+  REGION: us-east1
+  APP_NAME: my-app
+  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app
+
+jobs:
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build via Cloud Build
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions="_IMAGE=${{ env.IMAGE }},_TAG=${{ inputs.image_tag }}" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --quiet
+
+  migrate:
+    name: Run Migrations
+    needs: build
+    if: inputs.run_migrations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Update migration job image
+        run: |
+          gcloud run jobs update ${{ env.APP_NAME }}-${{ inputs.environment }}-migrate \
+            --image ${{ env.IMAGE }}:${{ inputs.image_tag }} \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Run migrations
+        run: |
+          gcloud run jobs execute ${{ env.APP_NAME }}-${{ inputs.environment }}-migrate \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --wait
+
+  deploy:
+    name: Deploy Services
+    needs: [build, migrate]
+    if: always() && needs.build.result == 'success' && (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy web
+        run: |
+          gcloud run deploy ${{ env.APP_NAME }}-${{ inputs.environment }}-web \
+            --image ${{ env.IMAGE }}:${{ inputs.image_tag }} \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy worker
+        run: |
+          gcloud run deploy ${{ env.APP_NAME }}-${{ inputs.environment }}-worker \
+            --image ${{ env.IMAGE }}:${{ inputs.image_tag }} \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Update scheduler job
+        run: |
+          gcloud run jobs update ${{ env.APP_NAME }}-${{ inputs.environment }}-scheduler \
+            --image ${{ env.IMAGE }}:${{ inputs.image_tag }} \
+            --region ${{ env.REGION }} \
+            --project ${{ secrets.GCP_PROJECT_ID }}

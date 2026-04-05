@@ -1,0 +1,34 @@
+# ============================================
+# Manual Deploy
+# ============================================
+# Trigger from GitHub UI: Actions → Manual Deploy → Run workflow
+# Pick an environment and optionally override the git ref.
+# ============================================
+
+name: Manual Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      ref:
+        description: "Git ref to deploy (default: current branch)"
+        required: false
+        type: string
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      environment: ${{ inputs.environment }}
+      image_tag: ${{ inputs.ref && inputs.ref || github.sha }}
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}

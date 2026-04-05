@@ -1,0 +1,95 @@
+# ============================================
+# Cloud Build: Build + Migrate + Deploy
+# ============================================
+# Triggered by GitHub Actions via `gcloud builds submit`.
+# Does all the GCP work in one shot.
+# ============================================
+
+steps:
+  # ── Build ───────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - -t
+      - ${_IMAGE}:${_TAG}
+      - -t
+      - ${_IMAGE}:latest
+      - .
+
+  # ── Push ────────────────────────────────────
+  - name: gcr.io/cloud-builders/docker
+    id: push
+    args: [push, --all-tags, '${_IMAGE}']
+
+  # ── Migrate ─────────────────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: migrate
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        gcloud run jobs update ${_APP}-${_ENV}-migrate \
+          --image ${_IMAGE}:${_TAG} \
+          --region ${_REGION} \
+          --project ${PROJECT_ID}
+        gcloud run jobs execute ${_APP}-${_ENV}-migrate \
+          --region ${_REGION} \
+          --project ${PROJECT_ID} \
+          --wait
+
+  # ── Deploy web ──────────────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-web
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_APP}-${_ENV}-web
+      - --image
+      - ${_IMAGE}:${_TAG}
+      - --region
+      - ${_REGION}
+      - --project
+      - ${PROJECT_ID}
+
+  # ── Deploy worker ───────────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: deploy-worker
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_APP}-${_ENV}-worker
+      - --image
+      - ${_IMAGE}:${_TAG}
+      - --region
+      - ${_REGION}
+      - --project
+      - ${PROJECT_ID}
+
+  # ── Update scheduler job ────────────────────
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    id: update-scheduler
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - update
+      - ${_APP}-${_ENV}-scheduler
+      - --image
+      - ${_IMAGE}:${_TAG}
+      - --region
+      - ${_REGION}
+      - --project
+      - ${PROJECT_ID}
+
+substitutions:
+  _APP: my-app
+  _ENV: production
+  _REGION: us-east1
+  _IMAGE: us-east1-docker.pkg.dev/${PROJECT_ID}/my-app-repo/my-app
+  _TAG: latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,28 @@
+# ============================================
+# Deploy to Production
+# ============================================
+# Triggers on push to main branch.
+# Uses GitHub environment protection rules
+# for optional manual approval.
+# ============================================
+
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # Never cancel a production deploy mid-flight
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      environment: production
+      image_tag: ${{ github.sha }}
+    secrets:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}

@@ -1,0 +1,69 @@
+# ============================================
+# Infrastructure Changes
+# ============================================
+# Trigger from GitHub UI: Actions → Infrastructure → Run workflow
+# Runs terraform plan first, then apply if confirmed.
+# ============================================
+
+name: Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to update"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      action:
+        description: "Plan only or plan + apply"
+        required: true
+        type: choice
+        options:
+          - plan
+          - apply
+
+env:
+  TF_DIR: terraform/environments/${{ inputs.environment }}
+
+jobs:
+  terraform:
+    name: Terraform ${{ inputs.action }} (${{ inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform plan \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="image=us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app:latest" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        if: inputs.action == 'apply'
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply tfplan

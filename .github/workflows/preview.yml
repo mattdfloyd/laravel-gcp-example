@@ -1,0 +1,175 @@
+# ============================================
+# Preview Environments
+# ============================================
+# PR opened/updated → build + deploy to ephemeral env
+# PR closed → tear down everything
+#
+# Requires Terraform to be available in the runner
+# and the preview env Terraform config.
+# ============================================
+
+name: Preview Environment
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [opened, synchronize, reopened, closed]
+
+concurrency:
+  group: preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REGION: us-east1
+  APP_NAME: my-app
+  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app
+  ENV_NAME: pr-${{ github.event.pull_request.number }}
+  # Each PR gets a unique /28 CIDR. PR 1 = 10.8.101.0/28, PR 2 = 10.8.102.0/28, etc.
+  # Works for PR numbers up to ~154 before running out of 10.8.x.0/28 space.
+  VPC_CIDR: 10.8.${{ github.event.pull_request.number + 100 }}.0/28
+  TF_DIR: terraform/environments/preview
+
+jobs:
+  # ── Deploy preview env ──────────────────────
+  deploy:
+    name: Deploy Preview
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+
+      # Build the image first via Cloud Build
+      - name: Build image
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions="_IMAGE=${{ env.IMAGE }},_TAG=${{ env.ENV_NAME }}" \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --quiet
+
+      # Stand up infrastructure
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Select/Create Workspace
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform workspace select ${{ env.ENV_NAME }} || terraform workspace new ${{ env.ENV_NAME }}
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform apply -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="env_name=${{ env.ENV_NAME }}" \
+            -var="vpc_connector_cidr=${{ env.VPC_CIDR }}" \
+            -var="image=${{ env.IMAGE }}:${{ env.ENV_NAME }}"
+
+      - name: Get preview URL
+        id: url
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          URL=$(terraform output -raw web_url)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      # Post the preview URL as a PR comment
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = `### 🚀 Preview Environment Ready\n\n**URL:** ${{ steps.url.outputs.url }}\n**Image:** \`${{ env.IMAGE }}:${{ env.ENV_NAME }}\`\n\nThis environment will be torn down when the PR is closed.`;
+
+            // Find existing comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Preview Environment')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  # ── Tear down preview env ───────────────────
+  teardown:
+    name: Teardown Preview
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init
+
+      - name: Select Workspace
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform workspace select ${{ env.ENV_NAME }}
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform destroy -auto-approve \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="env_name=${{ env.ENV_NAME }}" \
+            -var="vpc_connector_cidr=${{ env.VPC_CIDR }}" \
+            -var="image=${{ env.IMAGE }}:${{ env.ENV_NAME }}"
+
+      - name: Delete Workspace
+        working-directory: ${{ env.TF_DIR }}
+        run: |
+          terraform workspace select default
+          terraform workspace delete ${{ env.ENV_NAME }}
