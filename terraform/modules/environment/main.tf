@@ -17,6 +17,8 @@ data "google_project" "current" {
 
 locals {
   prefix        = "${var.app_name}-${var.environment}"
+  sa_prefix     = substr(local.prefix, 0, min(length(local.prefix), 24))
+  vpc_prefix    = substr(local.prefix, 0, min(length(local.prefix), 20))
   is_production = var.environment == "production"
   owns_db       = var.shared_db_instance == null
   owns_redis    = var.shared_redis_host == null
@@ -68,7 +70,9 @@ resource "random_id" "app_key" {
 resource "google_secret_manager_secret" "app_key" {
   secret_id = "${local.prefix}-app-key"
   project   = var.project_id
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "app_key" {
@@ -79,7 +83,9 @@ resource "google_secret_manager_secret_version" "app_key" {
 resource "google_secret_manager_secret" "db_password" {
   secret_id = "${local.prefix}-db-password"
   project   = var.project_id
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 
 resource "google_secret_manager_secret_version" "db_password" {

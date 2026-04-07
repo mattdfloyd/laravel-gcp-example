@@ -1,7 +1,9 @@
 # ============================================
 # Stage 1: Composer dependencies
 # ============================================
-FROM dunglas/frankenphp:php8.3-alpine AS composer
+FROM dunglas/frankenphp:php8.4-alpine AS composer
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN install-php-extensions pdo_pgsql redis pcntl
 
@@ -31,7 +33,7 @@ RUN npm run build
 # ============================================
 # Stage 3: Production image
 # ============================================
-FROM dunglas/frankenphp:php8.3-alpine
+FROM dunglas/frankenphp:php8.4-alpine
 
 RUN install-php-extensions pdo_pgsql redis pcntl
 

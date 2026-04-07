@@ -21,8 +21,8 @@ concurrency:
 
 env:
   REGION: us-east1
-  APP_NAME: my-app
-  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app
+  APP_NAME: laravel-gcp-example
+  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/laravel-gcp-example-repo/laravel-gcp-example
   ENV_NAME: pr-${{ github.event.pull_request.number }}
   # Each PR gets a unique /28 CIDR. PR 1 = 10.8.101.0/28, PR 2 = 10.8.102.0/28, etc.
   # Works for PR numbers up to ~154 before running out of 10.8.x.0/28 space.

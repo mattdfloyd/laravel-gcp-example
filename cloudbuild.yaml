@@ -85,10 +85,10 @@ steps:
       - ${PROJECT_ID}
 
 substitutions:
-  _APP: my-app
+  _APP: laravel-gcp-example
   _ENV: production
   _REGION: us-east1
-  _IMAGE: us-east1-docker.pkg.dev/${PROJECT_ID}/my-app-repo/my-app
+  _IMAGE: us-east1-docker.pkg.dev/${PROJECT_ID}/laravel-gcp-example-repo/laravel-gcp-example
   _TAG: latest
 
 options:

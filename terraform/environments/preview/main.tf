@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "gcs" {
-    bucket = "my-app-terraform-state"
+    bucket = "laravel-gcp-example-tf-state"
     prefix = "preview"
   }
 }
@@ -17,17 +17,33 @@ provider "google" {
   region  = var.region
 }
 
-variable "project_id" { type = string }
-variable "region" { type = string; default = "us-east1" }
-variable "image" { type = string }
-variable "env_name" { type = string }
-variable "vpc_connector_cidr" { type = string; default = "10.8.100.0/28" }
+variable "project_id" {
+  type = string
+}
+
+variable "region" {
+  type    = string
+  default = "us-east1"
+}
+
+variable "image" {
+  type = string
+}
+
+variable "env_name" {
+  type = string
+}
+
+variable "vpc_connector_cidr" {
+  type    = string
+  default = "10.8.100.0/28"
+}
 
 # Pull staging's DB and Redis info from its state
 data "terraform_remote_state" "staging" {
   backend = "gcs"
   config = {
-    bucket = "my-app-terraform-state"
+    bucket = "laravel-gcp-example-tf-state"
     prefix = "staging"
   }
 }
@@ -37,7 +53,7 @@ module "environment" {
 
   project_id  = var.project_id
   region      = var.region
-  app_name    = "my-app"
+  app_name    = "laravel-gcp-example"
   environment = var.env_name
   image       = var.image
 

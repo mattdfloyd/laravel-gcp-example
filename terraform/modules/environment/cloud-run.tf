@@ -135,8 +135,11 @@ resource "google_cloud_run_v2_service" "worker" {
 
     containers {
       image   = var.image
-      command = ["php"]
-      args    = ["artisan", "queue:work", "redis", "--sleep=3", "--tries=3", "--max-time=3600"]
+      command = ["/app/worker-entrypoint.sh"]
+
+      ports {
+        container_port = 8080
+      }
 
       resources {
         limits = {
@@ -144,6 +147,16 @@ resource "google_cloud_run_v2_service" "worker" {
           memory = var.worker_memory
         }
         cpu_idle = false # Keep CPU allocated even without requests
+      }
+
+      startup_probe {
+        http_get {
+          path = "/health"
+          port = 8080
+        }
+        initial_delay_seconds = 5
+        period_seconds        = 5
+        failure_threshold     = 10
       }
 
       volume_mounts {
@@ -327,7 +340,7 @@ resource "google_cloud_run_v2_job" "scheduler" {
 # ── Cloud Scheduler (triggers schedule:run every minute) ──
 
 resource "google_service_account" "scheduler" {
-  account_id   = "${local.prefix}-sched"
+  account_id   = "${local.sa_prefix}-sched"
   display_name = "Cloud Scheduler for ${local.prefix}"
   project      = var.project_id
 }

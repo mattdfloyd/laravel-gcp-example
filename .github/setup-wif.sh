@@ -11,11 +11,11 @@ set -euo pipefail
 # GitHub repository secrets.
 # ============================================
 
-PROJECT_ID="my-project"
-GITHUB_ORG="my-org"        # Your GitHub org or username
-GITHUB_REPO="my-repo"      # Your repo name
+PROJECT_ID="laravel-gcp-example"
+GITHUB_ORG="mattdfloyd"
+GITHUB_REPO="laravel-gcp-example"
 REGION="us-east1"
-APP_NAME="my-app"
+APP_NAME="laravel-gcp-example"
 
 SA_NAME="${APP_NAME}-github"
 POOL_NAME="${APP_NAME}-github-pool"

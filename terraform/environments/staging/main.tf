@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "gcs" {
-    bucket = "my-app-terraform-state"
+    bucket = "laravel-gcp-example-tf-state"
     prefix = "staging"
   }
 }
@@ -17,16 +17,25 @@ provider "google" {
   region  = var.region
 }
 
-variable "project_id" { type = string }
-variable "region" { type = string; default = "us-east1" }
-variable "image" { type = string }
+variable "project_id" {
+  type = string
+}
+
+variable "region" {
+  type    = string
+  default = "us-east1"
+}
+
+variable "image" {
+  type = string
+}
 
 module "environment" {
   source = "../../modules/environment"
 
   project_id  = var.project_id
   region      = var.region
-  app_name    = "my-app"
+  app_name    = "laravel-gcp-example"
   environment = "staging"
   image       = var.image
 
@@ -55,7 +64,7 @@ module "environment" {
   storage_force_destroy = true
 
   extra_env_vars = {
-    APP_URL = "https://staging.example.com"
+    APP_URL = "https://staging.mattdfloyd.com"
   }
 }
 

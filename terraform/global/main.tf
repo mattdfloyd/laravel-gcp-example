@@ -9,14 +9,14 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "my-app-terraform-state"
+    bucket = "laravel-gcp-example-tf-state"
     prefix = "global"
   }
 }
 
 variable "project_id" {
   type    = string
-  default = "my-project"
+  default = "laravel-gcp-example"
 }
 
 variable "region" {
@@ -26,7 +26,7 @@ variable "region" {
 
 variable "app_name" {
   type    = string
-  default = "my-app"
+  default = "laravel-gcp-example"
 }
 
 provider "google" {
@@ -77,8 +77,8 @@ resource "google_artifact_registry_repository" "app" {
 
 # ── Terraform State Bucket ──────────────────────
 # Create this manually first:
-#   gsutil mb -p my-project -l us-east1 gs://my-app-terraform-state
-#   gsutil versioning set on gs://my-app-terraform-state
+#   gsutil mb -p laravel-gcp-example -l us-east1 gs://laravel-gcp-example-tf-state
+#   gsutil versioning set on gs://laravel-gcp-example-tf-state
 
 # ── Outputs ─────────────────────────────────────
 

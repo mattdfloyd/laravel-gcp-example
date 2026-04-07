@@ -2,9 +2,9 @@
 
 # ── Configuration ─────────────────────────────
 
-PROJECT_ID   ?= my-project
+PROJECT_ID   ?= laravel-gcp-example
 REGION       ?= us-east1
-APP_NAME     ?= my-app
+APP_NAME     ?= laravel-gcp-example
 IMAGE_REPO   ?= $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(APP_NAME)-repo/$(APP_NAME)
 
 # ── Help ──────────────────────────────────────

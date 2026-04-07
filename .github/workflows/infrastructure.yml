@@ -60,7 +60,7 @@ jobs:
         run: |
           terraform plan \
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-            -var="image=us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app:latest" \
+            -var="image=us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/laravel-gcp-example-repo/laravel-gcp-example:latest" \
             -out=tfplan
 
       - name: Terraform Apply

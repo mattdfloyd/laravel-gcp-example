@@ -35,8 +35,8 @@ on:
 
 env:
   REGION: us-east1
-  APP_NAME: my-app
-  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/my-app-repo/my-app
+  APP_NAME: laravel-gcp-example
+  IMAGE: us-east1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/laravel-gcp-example-repo/laravel-gcp-example
 
 jobs:
   build:
