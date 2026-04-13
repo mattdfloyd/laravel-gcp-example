@@ -1,11 +1,10 @@
-# Cloud Run needs this to reach Memorystore Redis
-resource "google_vpc_access_connector" "main" {
-  name          = "${local.vpc_prefix}-conn"
+# Cloud Run uses Direct VPC Egress to reach Memorystore Redis.
+# This creates a subnet instead of a VPC Access Connector —
+# no extra VMs to provision, cheaper, and more reliable.
+resource "google_compute_subnetwork" "run" {
+  name          = "${local.prefix}-run"
   project       = var.project_id
   region        = var.region
+  network       = "projects/${var.project_id}/global/networks/default"
   ip_cidr_range = var.vpc_connector_cidr
-  network       = "default"
-  machine_type  = "e2-micro"
-  min_instances = 2
-  max_instances = 3
 }

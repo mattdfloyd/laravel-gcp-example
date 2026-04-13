@@ -18,7 +18,8 @@ data "google_project" "current" {
 locals {
   prefix        = "${var.app_name}-${var.environment}"
   sa_prefix     = substr(local.prefix, 0, min(length(local.prefix), 24))
-  vpc_prefix    = substr(local.prefix, 0, min(length(local.prefix), 20))
+  env_short     = substr(var.environment, 0, 4)
+  vpc_name      = "${substr(var.app_name, 0, 14)}-${local.env_short}"
   is_production = var.environment == "production"
   owns_db       = var.shared_db_instance == null
   owns_redis    = var.shared_redis_host == null

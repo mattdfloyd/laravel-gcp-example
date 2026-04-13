@@ -62,7 +62,7 @@ module "environment" {
   worker_max_instances = 5
 
   # Networking
-  vpc_connector_cidr = "10.8.0.0/28"
+  vpc_connector_cidr = "10.8.2.0/24"
 
   # Domain
   domain = "app.mattdfloyd.com"

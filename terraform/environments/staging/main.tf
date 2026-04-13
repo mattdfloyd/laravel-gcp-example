@@ -58,7 +58,7 @@ module "environment" {
   worker_max_instances = 1
 
   # Networking — different CIDR
-  vpc_connector_cidr = "10.8.1.0/28"
+  vpc_connector_cidr = "10.8.1.0/26"
 
   # Storage — destroyable
   storage_force_destroy = true

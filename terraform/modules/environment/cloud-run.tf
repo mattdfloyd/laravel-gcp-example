@@ -15,8 +15,11 @@ resource "google_cloud_run_v2_service" "web" {
     max_instance_request_concurrency = var.web_concurrency
 
     vpc_access {
-      connector = google_vpc_access_connector.main.id
-      egress    = "PRIVATE_RANGES_ONLY"
+      network_interfaces {
+        network    = "default"
+        subnetwork = google_compute_subnetwork.run.name
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     volumes {
@@ -122,8 +125,11 @@ resource "google_cloud_run_v2_service" "worker" {
     service_account = null
 
     vpc_access {
-      connector = google_vpc_access_connector.main.id
-      egress    = "PRIVATE_RANGES_ONLY"
+      network_interfaces {
+        network    = "default"
+        subnetwork = google_compute_subnetwork.run.name
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     volumes {
@@ -205,8 +211,11 @@ resource "google_cloud_run_v2_job" "migrate" {
   template {
     template {
       vpc_access {
-        connector = google_vpc_access_connector.main.id
-        egress    = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = "default"
+          subnetwork = google_compute_subnetwork.run.name
+        }
+        egress = "PRIVATE_RANGES_ONLY"
       }
 
       volumes {
@@ -276,8 +285,11 @@ resource "google_cloud_run_v2_job" "scheduler" {
   template {
     template {
       vpc_access {
-        connector = google_vpc_access_connector.main.id
-        egress    = "PRIVATE_RANGES_ONLY"
+        network_interfaces {
+          network    = "default"
+          subnetwork = google_compute_subnetwork.run.name
+        }
+        egress = "PRIVATE_RANGES_ONLY"
       }
 
       volumes {
